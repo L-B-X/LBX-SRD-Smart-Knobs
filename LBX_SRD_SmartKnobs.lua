@@ -12,9 +12,15 @@
   
   tab_automode = {'Trim/Read','Read','Touch','Write','Latch','Latch Preview'}
   tab_amcol = {'205 205 205','128 128 128','128 128 128','128 128 128','128 128 128','160 128 255'}
+  
+  local lvar = {}
+  local settings = {}
+  local paths = {}
+
+  lvar.deffloattime = 2  
     
-  contexts = {sliderctl = 0,
-              sliderctl_h = 1}
+  local contexts = {sliderctl = 0,
+                    sliderctl_h = 1}
   
   pi = 3.14159265359
     
@@ -142,6 +148,10 @@
             update_fader = true
             ret = true
           
+            if settings.floatfxgui ~= 0 then
+              OpenFXGUI(track2, fxnum2)
+            end
+            
           end
       
         end
@@ -202,10 +212,15 @@
                        h = gfx1.main_h-10}
 
     --learn
-    obj.sections[8] = {x = 10+butt_h/4,
-                       y = 12+butt_h/4,
-                       w = 20,
-                       h = 20}
+    obj.sections[9] = {x = 4, --+butt_h/4,
+                       y = 6,
+                       w = 40,
+                       h = 18}
+    obj.sections[8] = {x = 4,
+                       y = 26,
+                       w = 40,
+                       h = 18}
+                       
     --rec mode
     obj.sections[6] = {x = math.max(obj.sections[8].x+obj.sections[8].w+10, obj.sections[1].x+obj.sections[1].w-130),
                        y = 12,
@@ -380,7 +395,9 @@
     elseif lrnmode == true then
       bc = '255 0 0'
     end
-    GUI_DrawButton(gui, obj.sections[8], 'L', bc, '99 99 99', true, -1)
+    GUI_DrawButton(gui, obj.sections[8], 'LEARN', bc, '99 99 99', true, -4)
+    local bc = colours.buttcol
+    GUI_DrawButton(gui, obj.sections[9], 'SETTINGS', bc, '99 99 99', true, -8)
 
   end
 
@@ -641,14 +658,14 @@
   ------------------------------------------------------------
 
   function GetTrackChunk(track)
-	  if not track then return end
-	  local fast_str, track_chunk
-	  fast_str = reaper.SNM_CreateFastString("")
-	  if reaper.SNM_GetSetObjectState(track, fast_str, false, false) then
-		track_chunk = reaper.SNM_GetFastString(fast_str)
-	  end
-	  reaper.SNM_DeleteFastString(fast_str)  
-	  return track_chunk
+    if not track then return end
+    local fast_str, track_chunk
+    fast_str = reaper.SNM_CreateFastString("")
+    if reaper.SNM_GetSetObjectState(track, fast_str, false, false) then
+    track_chunk = reaper.SNM_GetFastString(fast_str)
+    end
+    reaper.SNM_DeleteFastString(fast_str)  
+    return track_chunk
   end
 
   function SetTrackChunk(track, track_chunk)
@@ -694,7 +711,7 @@
             else
               local trchunk = GetTrackChunk(track)
               
-              local ffn=resource_path..'chunkerror.txt'
+              local ffn=paths.resource_path..'chunkerror.txt'
               
               file=io.open(ffn,"w")
               file:write('fxnum: '..fxnum+1 ..'\n')
@@ -759,7 +776,7 @@
   function GetFXChunkFromTrackChunk(track, fxn)
   
     --local ret, trchunk = reaper.GetTrackStateChunk(track,'')
-	local trchunk = GetTrackChunk(track)
+  local trchunk = GetTrackChunk(track)
     if trchunk then
       local s,e, fnd = 0,0,nil
       for i = 1,fxn do
@@ -844,10 +861,10 @@
 
     if ffx then
     
-      local ffn=template_path..TrimFXName(ffx.fxplug)..'_'..ffx.fxtype..'.smtemp'
+      local ffn=paths.template_path..TrimFXName(ffx.fxplug)..'_'..ffx.fxtype..'.smtemp'
 
       if reaper.file_exists(ffn) ~= true then
-        ffn=template_path..TrimFXName(ffx.fxplug)..'.smtemp'
+        ffn=paths.template_path..TrimFXName(ffx.fxplug)..'.smtemp'
         if reaper.file_exists(ffn) ~= true then
           return 0
         end
@@ -861,6 +878,11 @@
         if idx then
           data[idx] = val
         end
+      end
+      
+      settings.floatfxgui = 0
+      if data['floatgui'] then
+        settings.floatfxgui = tonumber(data['floatgui'])
       end
         
       for i = 1, control_max do
@@ -889,9 +911,11 @@
   function SaveFXParamTemplate(ffx, template)
     if ffx then
     
-      local ffn=template_path..TrimFXName(ffx.fxplug)..'_'..ffx.fxtype..'.smtemp'
+      local ffn=paths.template_path..TrimFXName(ffx.fxplug)..'_'..ffx.fxtype..'.smtemp'
       
       file=io.open(ffn,"w")
+      file:write('[floatgui]'..(settings.floatfxgui or 0)..'\n')
+      
       for i = 1, control_max do
       
         if template.pos[i] then
@@ -936,6 +960,7 @@
               if upd_fb == true then
                 SetFaderBoxVal(i, val)
               end
+              
             end
           else
             if upd_fb == true then
@@ -947,6 +972,24 @@
       end
     end
   
+  end
+  
+  function OpenFXGUI(track,fxnum)
+  
+    local fxopentimerset = false
+    if reaper.TrackFX_GetOpen(track, fxnum) ~= true then
+      reaper.TrackFX_Show(track,fxnum,3)
+      fxopentimerset = true
+    end
+    if lvar.fxopentimer or fxopentimerset == true then
+      lvar.fxopentimer = reaper.time_precise() + settings.floatfxgui
+      lvar.fxopeninfo = {track = track,
+                         fxnum = fxnum}
+    end
+    
+  end
+  function CloseFXGUI(track,fxnum)
+    reaper.TrackFX_Show(track,fxnum,2)
   end
   
   function SetRecMode(m)
@@ -1176,6 +1219,12 @@
     
       if lrnmode == false then
 
+        if lvar.fxopentimer and lvar.fxopentimer < reaper.time_precise() then
+          CloseFXGUI(lvar.fxopeninfo.track,lvar.fxopeninfo.fxnum)
+          lvar.fxopentimer = nil
+          lvar.fxopeninfo = nil
+        end
+        
         if mouse.context == nil and gfx.mouse_wheel ~= 0 then
           local z = gfx.mouse_wheel / 120
           
@@ -1292,6 +1341,11 @@
           chktm = reaper.time_precise()+1
           lrnmode = not lrnmode
           update_gfx = true
+
+        elseif mouse.context == nil and MOUSE_click(obj.sections[9]) then
+          
+          SettingsMenu()
+          
         end
      
         if mouse.context and mouse.context == contexts.sliderctl then
@@ -1420,6 +1474,37 @@
     return val
   end
   
+  function SettingsMenu()
+  
+    local tick = ''
+    if settings.floatfxgui ~= 0 then
+      tick = '!'
+    end
+    local mstr = tick..'Float FX GUI||>Float time ('.. settings.floatfxgui..' secs)'
+    gfx.x = mouse.mx
+    gfx.y = mouse.my
+    local res = gfx.showmenu(mstr)
+    if res > 0 then
+    
+      if res == 1 then
+        if settings.floatfxgui == 0 then
+          settings.floatfxgui = lvar.deffloattime
+        else
+          settings.floatfxgui = 0
+        end
+        
+      elseif res == 2 then
+        local ret, tm = reaper.GetUserInputs('Set float time (secs)',1,'Time (secs):',tostring(settings.floatfxgui))
+        if ret == true then
+          settings.floatfxgui = tonumber(tm)
+          lvar.deffloattime = settings.floatfxgui
+        end
+      end
+    
+    end
+    
+  end
+  
   function SaveSettings()
   
     a,x,y,w,h = gfx.dock(-1,1,1,1,1)
@@ -1464,10 +1549,12 @@
   flashctl = {}
   fader_touch = {}
   
-  setting_hidectltrack = true
+  settings.hidectltrack = true
+  settings.floatfxgui = 0
   
   local track = GetCTLTrack()
   ctltrchecktime = reaper.time_precise()
+  
   --[[if setting_hidectltrack == true and track then
     reaper.SetMediaTrackInfo_Value(track, "B_SHOWINTCP", 0)
     reaper.SetMediaTrackInfo_Value(track, "B_SHOWINMIXER", 0)
@@ -1478,11 +1565,11 @@
   recmode = 0
   lrnmode = false
   
-  resource_path = reaper.GetResourcePath().."/Scripts/LBX/LBXSK_resources/"
-  template_path = resource_path.."templates/"
+  paths.resource_path = reaper.GetResourcePath().."/Scripts/LBX/LBXSK_resources/"
+  paths.template_path = paths.resource_path.."templates/"
   
-  reaper.RecursiveCreateDirectory(resource_path,1)
-  reaper.RecursiveCreateDirectory(template_path,1)
+  reaper.RecursiveCreateDirectory(paths.resource_path,1)
+  reaper.RecursiveCreateDirectory(paths.template_path,1)
     
   control_offs = 0
   control_cnt = 32
