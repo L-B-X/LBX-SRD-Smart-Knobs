@@ -640,6 +640,28 @@
   
   ------------------------------------------------------------
 
+  function GetTrackChunk(track)
+	  if not track then return end
+	  local fast_str, track_chunk
+	  fast_str = reaper.SNM_CreateFastString("")
+	  if reaper.SNM_GetSetObjectState(track, fast_str, false, false) then
+		track_chunk = reaper.SNM_GetFastString(fast_str)
+	  end
+	  reaper.SNM_DeleteFastString(fast_str)  
+	  return track_chunk
+  end
+
+  function SetTrackChunk(track, track_chunk)
+    if not (track and track_chunk) then return end
+    local fast_str, ret
+    fast_str = reaper.SNM_CreateFastString("")
+    if reaper.SNM_SetFastString(fast_str, track_chunk) then
+      ret = reaper.SNM_GetSetObjectState(track, fast_str, true, false)
+    end
+    reaper.SNM_DeleteFastString(fast_str)
+    return ret
+  end
+  
   function GetFocusedFX(force)
   
     local FFX
@@ -670,7 +692,7 @@
                      fxguid = fxguid,
                      fxtype = fxtype}
             else
-              local ret, trchunk = reaper.GetTrackStateChunk(track,'')
+              local trchunk = GetTrackChunk(track)
               
               local ffn=resource_path..'chunkerror.txt'
               
@@ -736,8 +758,9 @@
   --returns success, fxchunk, start loc, end loc
   function GetFXChunkFromTrackChunk(track, fxn)
   
-    local ret, trchunk = reaper.GetTrackStateChunk(track,'')
-    if ret then
+    --local ret, trchunk = reaper.GetTrackStateChunk(track,'')
+	local trchunk = GetTrackChunk(track)
+    if trchunk then
       local s,e, fnd = 0,0,nil
       for i = 1,fxn do
         s, e = string.find(trchunk,'(BYPASS.-WAK %d)',s)
