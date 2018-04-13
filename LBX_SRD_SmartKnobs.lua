@@ -82,6 +82,7 @@
               LBX_CTL_TRACK_INF.guids[f] = reaper.TrackFX_GetFXGUID(track,f)
             end
           end
+          control_cnt = LBX_CTL_TRACK_INF.count * 32
           return track
         end
       end
@@ -122,22 +123,21 @@
       if track then
         for i = 1, control_cnt do
       
-          local val = reaper.TrackFX_GetParamNormalized(track, fxnum, i-1)
+          fxnum = math.floor((i-1) / 32)
+          
+          local val = reaper.TrackFX_GetParamNormalized(track, fxnum, (i-1) % 32)
           val = round(val,5)
           if template.pos[i] and tostring(template.pos[i].val) ~= tostring(val) then
-
-            --DBG(template.pos[i].val..'  '..val)
 
             if recmode == 1 then
               if fader_touch[i] == nil then
                 fader_touch[i] = true
                 local ctltrack = GetTrack(LBX_CTL_TRACK)
-                local env = reaper.GetFXEnvelope(ctltrack, 0, i-1, true)
+                local env = reaper.GetFXEnvelope(ctltrack, math.floor((i-1)/32), (i-1) % 32, true)
                 ArmEnv(env, false)
               end
             end
             
-            --DBG(template.pos[i].val..'  '..tostring(val))
             template.pos[i].val = val
             local pnum = template.pos[i].pnum
             
@@ -161,13 +161,13 @@
     
   end
 
-  function SetFaderBoxVal(i, v)
-  
-    if LBX_CTL_TRACK then
-      local track = GetTrack(LBX_CTL_TRACK)
+  function SetFaderBoxVal(i, v, track)
+     if LBX_CTL_TRACK then
+      local track = track or GetTrack(LBX_CTL_TRACK)
       if track then
-        local fxnum = 0
-        reaper.TrackFX_SetParamNormalized(track, fxnum, i-1, v)
+        local fxnum = math.floor((i-1) / 32)
+        local pnum = (i-1) % 32
+        reaper.TrackFX_SetParamNormalized(track, fxnum, pnum, v)
       end
     end
       
@@ -433,7 +433,6 @@
     local viscnt = math.floor(obj.sections[1].h/(fader_h + fader_space))
     
     for i = 1, viscnt do
-  
       if i+control_offs <= control_cnt and (update_gfx == true or (template.dirty[i+control_offs] == true) or template.sft[i+control_offs]) then
         GUI_DrawFader(obj, gui, i)
       end
@@ -443,11 +442,10 @@
   end
   
   function GUI_DrawFader(obj, gui, i)
-  
     local y = (i-1) * (fader_h+fader_space)
     local fv = 0
-    if template.pos[i] then
-      fv = F_limit(template.pos[i].val,0,1)
+    if template.pos[i+control_offs] then
+      fv = F_limit(template.pos[i+control_offs].val,0,1)
     end
     
     f_Get_SSV(colours.faderbg)
@@ -776,7 +774,7 @@
   function GetFXChunkFromTrackChunk(track, fxn)
   
     --local ret, trchunk = reaper.GetTrackStateChunk(track,'')
-  local trchunk = GetTrackChunk(track)
+    local trchunk = GetTrackChunk(track)
     if trchunk then
       local s,e, fnd = 0,0,nil
       for i = 1,fxn do
@@ -893,7 +891,6 @@
           
           template.pos[i] = {pnum = pnum,
                              pname = zn(data[pfx..'pname'],'')}
-        
         end
       
       end      
@@ -944,14 +941,17 @@
       end
       
       if track then
+        local ctltrack = GetTrack(LBX_CTL_TRACK)
       
         for i = 1, control_cnt do
       
           if template.pos[i] then
             local fxnum = FFX.fxnum
             local pnum = template.pos[i].pnum
+            --DBG(i.. '  '..pnum)
             local val = round(reaper.TrackFX_GetParamNormalized(track, fxnum, pnum),5)
             if template.pos[i].val ~= val then
+            
               --val = round(val,5)
               template.pos[i].val = val
               template.dirty[i] = true
@@ -964,7 +964,12 @@
             end
           else
             if upd_fb == true then
-              SetFaderBoxVal(i, 0)
+              local fxnum = math.floor((i-1)/32)
+              local pnum = (i-1) % 32
+              local val = round(reaper.TrackFX_GetParamNormalized(ctltrack, fxnum, pnum),5)
+              if val ~= 0 then
+                SetFaderBoxVal(i, 0)
+              end
             end
           end
         end
@@ -1009,7 +1014,7 @@
           for i = 1, control_cnt do
             if fader_touch[i] == true then
 
-              local srcenv = reaper.GetFXEnvelope(ctltrack, 0, i-1, false)
+               local srcenv = reaper.GetFXEnvelope(ctltrack, math.floor((i-1)/32), (i-1) % 32, false)
               local dstenv = reaper.GetFXEnvelope(tgttrack, FFX.fxnum, template.pos[i].pnum, true)
               if srcenv and dstenv then
                 CopyEnv(srcenv, dstenv, start_time, end_time, true)
@@ -1108,7 +1113,7 @@
        
       for k = 0, env_points_count+1 do
         retval, time, valueOut, shape, tension, selectedOut = reaper.GetEnvelopePoint(srcenv, k)
-      --DBG(k..'  '..time)
+
         if time >= start_time and time <= end_time then
           reaper.InsertEnvelopePoint(dstenv, time, valueOut, shape, tension, 1, true)
         end
@@ -1138,7 +1143,7 @@
   function ClearEnvelope(trn, envn)
     local track = GetTrack(trn)
     if track then
-      local env = reaper.GetFXEnvelope(track, 0, envn, false)
+      local env = reaper.GetFXEnvelope(track, math.floor(envn/32), envn % 32, false)
       if env then 
         --[[local plen = reaper.GetProjectLength(0)
         reaper.DeleteEnvelopePointRange(env,-10,plen+10)]]
@@ -1551,6 +1556,8 @@
   
   settings.hidectltrack = true
   settings.floatfxgui = 0
+
+  control_cnt = 32
   
   local track = GetCTLTrack()
   ctltrchecktime = reaper.time_precise()
@@ -1572,8 +1579,7 @@
   reaper.RecursiveCreateDirectory(paths.template_path,1)
     
   control_offs = 0
-  control_cnt = 32
-  control_max = 128
+  control_max = 512
   
   fadedel_s = 0.2
   fadedel_e = fadedel_s + 0.4
