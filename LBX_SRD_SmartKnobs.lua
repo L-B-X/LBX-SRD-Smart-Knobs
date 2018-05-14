@@ -23,6 +23,9 @@
                     sliderctl_h = 1}
   
   pi = 3.14159265359
+  
+  control_cnt = 32
+  control_max = 512
     
   --------------------------------------------
   --------------------------------------------
@@ -82,7 +85,7 @@
               LBX_CTL_TRACK_INF.guids[f] = reaper.TrackFX_GetFXGUID(track,f)
             end
           end
-          control_cnt = LBX_CTL_TRACK_INF.count * 32
+          control_cnt = math.min(LBX_CTL_TRACK_INF.count * 32, control_max)
           return track
         end
       end
@@ -1557,7 +1560,6 @@
   settings.hidectltrack = true
   settings.floatfxgui = 0
 
-  control_cnt = 32
   
   local track = GetCTLTrack()
   ctltrchecktime = reaper.time_precise()
@@ -1579,7 +1581,6 @@
   reaper.RecursiveCreateDirectory(paths.template_path,1)
     
   control_offs = 0
-  control_max = 512
   
   fadedel_s = 0.2
   fadedel_e = fadedel_s + 0.4
