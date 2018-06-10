@@ -32,7 +32,7 @@
         
   function GetTrack(t)
   
-    local tr
+    local track
     if t == nil or t == 0 then
       track = reaper.GetMasterTrack(0)
     else
@@ -730,7 +730,7 @@
       
       end
     end
-      
+    
     return FFX, ret
     
   end
@@ -931,14 +931,14 @@
   end
   
   function ReadParamVals(upd_fb)
-  
+ 
     if FFX then
     
       local track = GetTrack(FFX.trn)
       if FFX.trguid ~= reaper.GetTrackGUID(track) then
         local ret
         FFX, ret = GetFocusedFX(true)
-        if ret == 1 then
+        if ret == 1 and FFX then
           track = GetTrack(FFX.trn)
         end
       end
