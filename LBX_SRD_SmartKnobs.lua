@@ -695,8 +695,9 @@
         if track then
           local ret, fxname = reaper.TrackFX_GetFXName(track, fxnum, '')
           local fxguid = reaper.TrackFX_GetFXGUID(track, fxnum)
-          if fxguid ~= ofxguid or force == true then
+          if fxguid ~= ofxguid or fxnum ~= ofxnum or force == true then
             ofxguid = fxguid
+            ofxnum = fxnum
             local _,fx = GetFXChunkFromTrackChunk(track, fxnum+1)
             if fx then
               fx = string.match(fx, '.-<(.*)')
@@ -1182,7 +1183,7 @@
     if lrnmode == false then
       local ctlchk, track = CheckCTLGUID()
       local checkfx, ret = GetFocusedFX(not ctlchk)
-      if checkfx and CTMISSING == nil and (FFX == nil or FFX.fxguid ~= checkfx.fxguid or ctlchk == false) then
+      if checkfx and CTMISSING == nil and (FFX == nil or FFX.fxguid ~= checkfx.fxguid or FFX.fxnum ~= checkfx.fxnum or ctlchk == false) then
         if FFX and FFX.trn ~= checkfx.trn then
           SetAutoMode(FFX.trn,LBX_FX_TRACK_DEFAM)
         end
