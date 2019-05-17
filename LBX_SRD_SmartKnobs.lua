@@ -17,7 +17,13 @@
   local settings = {}
   local paths = {}
 
-  lvar.deffloattime = 2  
+  local tab_fxtypeconv = {}
+  tab_fxtypeconv['dll'] = 'vst'
+  
+  lvar.deffloattime = 2
+    
+  lvar.mousewheel_mult = 120
+  --lvar.mousewheel_mult = 6 --Uncomment this line if using a Mighty Mouse on Mac!
     
   local contexts = {sliderctl = 0,
                     sliderctl_h = 1}
@@ -698,10 +704,13 @@
           if fxguid ~= ofxguid or fxnum ~= ofxnum or force == true then
             ofxguid = fxguid
             ofxnum = fxnum
-            local _,fx = GetFXChunkFromTrackChunk(track, fxnum+1)
+            --local _,fx = GetFXChunkFromTrackChunk(track, fxnum+1)
+            local ret, fx = reaper.BR_TrackFX_GetFXModuleName(track, fxnum, '', 128)
             if fx then
-              fx = string.match(fx, '.-<(.*)')
-              local fxnm, fxtype = GetPlugNameFromChunk(fx)
+              --fx = string.match(fx, '.-<(.*)')
+              --local fxnm, fxtype = GetPlugNameFromChunk(fx)
+              local fxnm, fxtype = string.match(fx, '(.+)%.(.*)')
+              fxtype = tab_fxtypeconv[fxtype] or fxtype
               fxname = TrimFXName(fxname)
               FFX = {trn = trn,
                      trguid = reaper.GetTrackGUID(track),
@@ -768,6 +777,12 @@
         fxn = string.match(fxchunk, 'JS.*%/(.-)%"%\"')
         fxn = string.sub(fxn,1,string.len(fxn)-2)
       end]]
+    elseif string.sub(fxc,1,2) == 'AU' then
+      fxt = 'AU'
+      fxn = string.match(fxc, '.-: (.-) %(')
+      if fxn == nil then
+        fxn = string.match(fxc, '.-: (.-)%"')      
+      end
     end
   
     return fxn, fxt
@@ -1184,11 +1199,11 @@
       local ctlchk, track = CheckCTLGUID()
       local checkfx, ret = GetFocusedFX(not ctlchk)
       if checkfx and CTMISSING == nil and (FFX == nil or FFX.fxguid ~= checkfx.fxguid or FFX.fxnum ~= checkfx.fxnum or ctlchk == false) then
-        if FFX and FFX.trn ~= checkfx.trn then
+        --[[if FFX and FFX.trn ~= checkfx.trn then
           SetAutoMode(FFX.trn,LBX_FX_TRACK_DEFAM)
-        end
+        end]]
         FFX = checkfx
-        SetAutoMode(FFX.trn,LBX_FX_TRACK_AM)
+        --SetAutoMode(FFX.trn,LBX_FX_TRACK_AM)
         LoadFXParamTemplate(FFX)
         ReadParamVals(true)
   
@@ -1235,7 +1250,8 @@
         end
         
         if mouse.context == nil and gfx.mouse_wheel ~= 0 then
-          local z = gfx.mouse_wheel / 120
+          local z = gfx.mouse_wheel / lvar.mousewheel_mult
+          --DBG(gfx.mouse_wheel ..'  '..z)
           
           if MOUSE_over(obj.sections[2]) or MOUSE_over(obj.sections[1]) then
             control_offs = F_limit(control_offs-z,0,control_cnt-1)
