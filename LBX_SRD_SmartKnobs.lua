@@ -705,11 +705,18 @@
             ofxguid = fxguid
             ofxnum = fxnum
             --local _,fx = GetFXChunkFromTrackChunk(track, fxnum+1)
-            local ret, fx = reaper.BR_TrackFX_GetFXModuleName(track, fxnum, '', 128)
-            if fx then
+            local ret, fx, fxMod
+            ret, fxMod = reaper.BR_TrackFX_GetFXModuleName(track, fxnum, '', 128)
+            --[[if settings.usemod == 1 then
+              fx = fxMod
+            else
+              fx = fxname
+            end]]
+            if fxMod then
               --fx = string.match(fx, '.-<(.*)')
               --local fxnm, fxtype = GetPlugNameFromChunk(fx)
-              local fxnm, fxtype = string.match(fx, '(.+)%.(.*)')
+              
+              local fxnm, fxtype = string.match(fxMod, '(.+)%.(.*)')
               fxtype = tab_fxtypeconv[fxtype] or fxtype
               fxname = TrimFXName(fxname)
               FFX = {trn = trn,
@@ -878,8 +885,12 @@
 
     if ffx then
     
-      local ffn=paths.template_path..TrimFXName(ffx.fxplug)..'_'..ffx.fxtype..'.smtemp'
-
+      local ffn
+      if settings.usemod == 1 then
+        ffn=paths.template_path..TrimFXName(ffx.fxplug)..'_'..ffx.fxtype..'.smtemp'
+      else
+        ffn=paths.template_path..TrimFXName(ffx.fxname)..'_'..ffx.fxtype..'.smtemp'      
+      end
       if reaper.file_exists(ffn) ~= true then
         ffn=paths.template_path..TrimFXName(ffx.fxplug)..'.smtemp'
         if reaper.file_exists(ffn) ~= true then
@@ -927,8 +938,11 @@
   function SaveFXParamTemplate(ffx, template)
     if ffx then
     
-      local ffn=paths.template_path..TrimFXName(ffx.fxplug)..'_'..ffx.fxtype..'.smtemp'
-      
+      if settings.usemod == 1 then
+        ffn=paths.template_path..TrimFXName(ffx.fxplug)..'_'..ffx.fxtype..'.smtemp'
+      else
+        ffn=paths.template_path..TrimFXName(ffx.fxname)..'_'..ffx.fxtype..'.smtemp'      
+      end
       file=io.open(ffn,"w")
       file:write('[floatgui]'..(settings.floatfxgui or 0)..'\n')
       
@@ -1505,7 +1519,11 @@
     if settings.floatfxgui ~= 0 then
       tick = '!'
     end
-    local mstr = tick..'Float FX GUI||>Float time ('.. settings.floatfxgui..' secs)'
+    local mnd = ''
+    if settings.usemod == 1 then
+      mnd = '!'
+    end
+    local mstr = tick..'Float FX GUI||Float time ('.. settings.floatfxgui..' secs)||'..mnd..'Use Module Name Detection'
     gfx.x = mouse.mx
     gfx.y = mouse.my
     local res = gfx.showmenu(mstr)
@@ -1524,6 +1542,9 @@
           settings.floatfxgui = tonumber(tm)
           lvar.deffloattime = settings.floatfxgui
         end
+
+      elseif res == 3 then
+        settings.usemod = 1-settings.usemod 
       end
     
     end
@@ -1539,6 +1560,8 @@
       reaper.SetExtState(SCRIPT,'win_y',nz(y,0),true)    
       reaper.SetExtState(SCRIPT,'win_w',nz(gfx1.main_w,400),true)
       reaper.SetExtState(SCRIPT,'win_h',nz(gfx1.main_h,450),true)    
+
+      reaper.SetExtState(SCRIPT,'usemod',nz(settings.usemod,1),true)    
     end
   
   end
@@ -1548,6 +1571,8 @@
     local x, y = GES('win_x',true), GES('win_y',true)
     local ww, wh = GES('win_w',true), GES('win_h',true)
     local d = GES('dock',true)
+    settings.usemod = tonumber(GES('usemod',true)) or 1
+
     if x == nil then x = 0 end
     if y == nil then y = 0 end
     if d == nil then d = gfx.dock(-1) end    
@@ -1576,7 +1601,7 @@
   
   settings.hidectltrack = true
   settings.floatfxgui = 0
-
+  settings.usemod = 1
   
   local track = GetCTLTrack()
   ctltrchecktime = reaper.time_precise()
