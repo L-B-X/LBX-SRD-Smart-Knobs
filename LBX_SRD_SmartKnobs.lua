@@ -431,7 +431,7 @@
                obj.sections[3].w,
                obj.sections[3].h, 1)
       GUI_text(gui, obj.sections[3], FFX.fxname, 5, tab_amcol[LBX_FX_TRACK_AM+1], 2)
-      GUI_text(gui, obj.sections[7], '('..FFX.fxtype..')', 5, '99 99 99', -5)
+      GUI_text(gui, obj.sections[7], '('..(FFX.fxtype or '')..')', 5, '99 99 99', -5)
     
     end
 
@@ -717,7 +717,7 @@
               --local fxnm, fxtype = GetPlugNameFromChunk(fx)
               
               local fxnm, fxtype = string.match(fxMod, '(.+)%.(.*)')
-              fxtype = tab_fxtypeconv[fxtype] or fxtype
+              fxtype = tab_fxtypeconv[fxtype] or (fxtype or '')
               fxname = TrimFXName(fxname)
               FFX = {trn = trn,
                      trguid = reaper.GetTrackGUID(track),
@@ -865,6 +865,7 @@
   
   function TrimFXName(fxname)
   
+    fxname = fxname or ''
     local fxn = string.match(fxname, '.-: (.+) %(')
     if fxn == nil then
       fxn = string.match(fxname, '.-: (.*)')
@@ -887,7 +888,7 @@
     
       local ffn
       if settings.usemod == 1 then
-        ffn=paths.template_path..TrimFXName(ffx.fxplug)..'_'..ffx.fxtype..'.smtemp'
+        ffn=paths.template_path..TrimFXName(ffx.fxplug)..'_'..(ffx.fxtype or '')..'.smtemp'
       else
         ffn=paths.template_path..TrimFXName(ffx.fxname)..'_'..ffx.fxtype..'.smtemp'      
       end
